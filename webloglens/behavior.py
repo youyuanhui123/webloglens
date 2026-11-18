@@ -8,6 +8,13 @@ _MONTHS = {name: f'{number:02d}' for number, name in enumerate(
 )}
 
 
+def parse_timestamp(value):
+    """Parse combined time using English months, independent of host locale."""
+    day, month, rest = value.split('/', 2)
+    numeric = f'{day}/{_MONTHS[month]}/{rest}'
+    return datetime.strptime(numeric, '%d/%m/%Y:%H:%M:%S %z').astimezone(timezone.utc)
+
+
 def detect_path_bursts(records, window_seconds=60, min_paths=5):
     """Inclusive window, distinct undecoded paths, first finding per IP."""
     if type(window_seconds) is not int or window_seconds <= 0:
@@ -19,10 +26,7 @@ def detect_path_bursts(records, window_seconds=60, min_paths=5):
     for record in records:
         fields = record['fields']
         try:
-            # Convert English month explicitly, independent of machine locale.
-            day, month, rest = fields['time'].split('/', 2)
-            numeric = f'{day}/{_MONTHS[month]}/{rest}'
-            instant = datetime.strptime(numeric, '%d/%m/%Y:%H:%M:%S %z').astimezone(timezone.utc)
+            instant = parse_timestamp(fields['time'])
         except (ValueError, KeyError):
             time_errors.append({
                 'line_number': record['line_number'], 'raw': record['raw'],

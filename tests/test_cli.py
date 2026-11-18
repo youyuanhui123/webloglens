@@ -152,7 +152,7 @@ class CliTests(unittest.TestCase):
         run = subprocess.run([sys.executable, str(SCRIPT), '--version'],
                              capture_output=True, text=True, encoding='utf-8')
         self.assertEqual(run.returncode, 0, run.stderr)
-        self.assertEqual(run.stdout.strip(), 'WebLogLens 1.0.0')
+        self.assertEqual(run.stdout.strip(), 'WebLogLens 2.0.0')
 
     def test_missing_input_and_invalid_utf8_fail_without_export(self):
         with tempfile.TemporaryDirectory() as folder:

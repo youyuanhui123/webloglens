@@ -1,97 +1,72 @@
-# WebLogLens 1.0.0
+# WebLogLens 2.0.0
 
-基于 Python 标准库的离线 Web 访问日志排查工具。面向个人安全实践：从原始日志到统计、可解释线索、证据回查及 JSON / Markdown 报告。**不是漏洞扫描器、WAF 或生产级入侵检测系统。**
-
-## 已验证结果
-
-第一版在 Windows Python 3.11 / 3.15 下分别通过 34 个自动测试；三组真实本机 HTTP 对照实验全部符合预期。验收输出保存在本地 acceptance/v1.0.0/，不进入分享源码包。具体复验方法和限制见 docs/ACCEPTANCE.md。
+基于Python标准库、支持**历史回放与实时跟随**的Web访问日志排查工具。个人安全实践项目，AI辅助开发；用于发现可解释线索和整理证据，**不是WAF、漏洞扫描器、自动封禁平台或入侵成功判定器**。
 
 ## 运行要求
 
-- Python 3.11 或更新版本；当前验收覆盖 3.11 与 3.15。
-- 无第三方运行依赖，不需要 pip install，不需要管理员权限。
-- 日志：UTF-8（支持 BOM）、固定 combined 格式；只面向小型离线日志，当前会将解析结果保存在内存中。
+- Python 3.11及以上；实机验收覆盖Windows Python 3.11.9和3.15.1，不等于所有平台都已验证。
+- 核心入口无需pip安装、管理员权限或Docker。原生Nginx实验额外需要已启动Docker及本地nginx:alpine镜像，不自动拉取。
+- 本地UTF-8、固定combined日志。analyze.py批量累积并排序；watch.py采用有限增量状态。两者时间语义不同，不承诺所有输入结果恒等。
 
-## 快速开始
+## 从解压包直接运行（Windows CMD，项目根）
 
-在项目目录运行（Windows CMD 与 WSL bash 均可，进入目录命令见 docs/QUICKSTART.md）：
+输出文件须不存在，父目录须存在；下面使用包内examples/docs，不依赖未打包的历史验收文件。
 
-```text
+```cmd
 python analyze.py --version
-python analyze.py
-python analyze.py examples/synthetic_burst.log --data-kind synthetic --format markdown
-python run_experiment.py
+python watch.py examples/synthetic_sensitive.log --replay --min-paths 3 --output docs/demo-events.jsonl
+python report_events.py docs/demo-events.jsonl --output docs/demo-stage.md
 python -m unittest discover -s tests -v
 ```
 
-PyCharm：打开整个项目，选择 Python 解释器，右键运行 analyze.py 或 run_experiment.py。原 main.py、read_demo.py、stats_demo.py、detect_demo.py 保留作分步演示。
+回放样例包含5条请求，min-paths=3时得到2条精确路径线索和1条窗口线索。再次演示请换输出名，工具不会覆盖已有结果。默认测试跳过2个Docker集成项，其余测试仍包含真实本地HTTP和watch子进程，需要本机允许回环监听。
 
-## 功能
+PyCharm：打开整个WebLogLens目录，选择解释器，工作目录设项目根。运行watch.py，脚本形参填 `examples/synthetic_sensitive.log --replay --min-paths 3 --output docs/demo-events.jsonl`；再运行report_events.py，形参填 `docs/demo-events.jsonl --output docs/demo-stage.md`。形参中不要重复python或脚本名。
 
-- 批量读取，保留原始行号与文本，区分空行、格式错误和时间错误。
-- 请求数、状态码、来源 IP、路径统计。
-- 配置化精确路径匹配，输出规则、原因和证据。
-- 按来源 IP 分组、UTC 排序的多路径滑动窗口检测。
-- JSON / Markdown 导出、拒绝覆盖已有文件。
-- 可选 --redact-share 分享视图，严格按允许字段重建报告。
-- 一键本地真实 HTTP 实验：正常重复、混合访问、正常多页面三个场景。
-- 白名单发布包与逐文件 SHA-256 清单。
+## 入口选择
 
-## 常用导出
+|入口|用途|
+|---|---|
+|analyze.py|保留第一版整批分析：UTC全量排序、每IP首个窗口，可选分享视图|
+|watch.py --replay|静态日志按文件原顺序回放，隐含开启检测，EOF刷新退出|
+|watch.py --detect|持续跟随单文件新完整行，按有限乱序策略增量检测|
+|watch.py（无检测参数）|只读取解析，不做规则检测；默认从末尾开始|
+|report_events.py|汇总已保存的单次JSONL，不重新检测；仅私有报告|
+|run_experiment.py|受控Python HTTPServer实验，保留第一版入口|
+|run_nginx_experiment.py|本地原生Nginx三场景，清理本次容器|
+|run_baseline.py|受控合成资源及真实watch延迟初始基线|
+|build_release.py|明确白名单源码ZIP与逐文件SHA-256清单|
 
-输出目录必须已存在，下面使用已有 docs 目录。再次运行请换文件名。
+自己的授权日志（CMD）：
 
-```text
-python analyze.py examples/synthetic_burst.log --data-kind synthetic --output docs/private-report.json
-python analyze.py examples/synthetic_burst.log --data-kind synthetic --format markdown --output docs/private-report.md
-python analyze.py examples/synthetic_burst.log --data-kind synthetic --redact-share --format markdown --output docs/share-report.md
-python analyze.py examples/synthetic_burst.log --config rules/example.json --min-paths 5
+```cmd
+python watch.py "D:\logs\access.log" --detect --output "D:\logs\events.jsonl"
 ```
 
-命令行阈值优先于配置；配置无效时退出，不静默回退。--data-kind 只是调用者声明，工具不能证明数据来源或授权。
+默认只观察启动后的新增完整行；从头观察加 --start beginning。正常Ctrl+C会刷新并写退出摘要，再用report_events.py生成报告。不能把日志中的200响应当作泄露或攻击成功。
 
-## 实验与证据
+## 已实现与边界
 
-run_experiment.py 只监听 127.0.0.1 动态端口，发送真实 HTTP 请求并采集日志；服务只返回固定文本，不读取磁盘文件，不访问外部目标。完成后关闭服务并验证端口。每次新建 experiments/local-<UTC>/：
+- combined解析、原始证据定位、坏行记录、精确路径和多路径窗口规则。
+- 增量核心共用实时/回放入口，包含有限乱序、迟到事件、冷却、状态过期和容量限制；容量排除明确留事件。
+- 文件轮转、截断、路径缺失、半行、超长行处理；不保证轮转竞争下exactly-once或无损。
+- 私有JSONL与JSON/Markdown阶段报告，独立核对观察计数和退出摘要，区分事件流完整与分析缺口。
+- 原生Nginx正常/混合/正常多页面反例实验；短时资源与延迟基线。
+- 固定combined；不自动URL解码/大小写或路径归一化，不解析可信代理链，不支持远程多机采集、强断点恢复或自动防御。
+- 未做生产准确率、高基数压力、多小时稳定性、进程RSS或持续业务轮转无损评估。初始基线不构成生产SLA。
 
-```text
-REPORT.md、summary.json、experiment-config.json
-baseline/、mixed/、normal-wide/
-    access.log、manifest.json
-    report.json、analysis.md         # 私有完整报告
-    share.json、share.md             # 分享视图
-```
+## 隐私与发布范围
 
-服务为 Python HTTPServer 自定义 combined 日志器，**不是 Nginx**。normal-wide 的五个正常页面也会命中多路径规则，这是必须保留的检测边界，不报告虚构准确率。
+watch输出和阶段报告默认含原文、IP、查询串、精确时间与本地路径，**不能直接公开**。只有analyze.py的 --redact-share 支持旧结构分享视图，不能用于新增JSONL/阶段报告。Markdown安全渲染不等于脱敏，旧分享视图也不保证匿名。
 
-## 分享与隐私
+源码ZIP只包含明确列出的源码、测试、手册、规则、合成样例与清单；不包含acceptance、experiments、study.md、历史报告、环境或缓存。白名单无法判断用户后来写入样例或规则的秘密，重新发布前仍需检查。旧版WebLogLens-1.0.0-r1.zip保留，第二版另存WebLogLens-2.0.0.zip。
 
-默认报告不脱敏。分享版移除原始证据、查询串、头部、精确时间和本地路径，IP/请求路径替换为单次导出内的代号，不输出映射表。计数、关系与行号仍可能关联，不能保证匿名；发布前人工复核。详见 docs/PRIVACY.md。
+## 文档与复现
 
-不要公开整个 experiments 目录，也不要把 docs 中的历史私有输出推到公开仓库。build_release.py 使用明确文件白名单，不包含 experiments、缓存、虚拟环境、历史报告或 .env。
+- [快速开始](docs/QUICKSTART.md)：CMD/PyCharm和完整演示。
+- [架构](docs/ARCHITECTURE.md)、[实时策略](docs/V2-REALTIME.md)：时间/窗口/容量语义。
+- [阶段报告](docs/EVENT-REPORT.md)、[隐私](docs/PRIVACY.md)：质量与公开边界。
+- [原生Nginx实验](docs/NGINX-LAB.md)、[资源延迟基线](docs/BASELINE.md)。
+- [验收](docs/ACCEPTANCE.md)、[项目表达](docs/INTERVIEW.md)。
 
-## 项目结构
-
-```text
-analyze.py                统一分析入口
-run_experiment.py         本地端到端实验
-build_release.py          源码便携包
-webloglens/               解析、读取、统计、规则、窗口、脱敏、报告模块
-rules/                    默认和示例配置
-examples/                 明确标记的合成日志
-tests/                    unittest 回归与真实 HTTP 集成测试
-docs/                     当前手册及开发历史
-```
-
-## 文档
-
-- docs/QUICKSTART.md：CMD / PyCharm / WSL 的具体运行方式。
-- docs/ARCHITECTURE.md：数据流、算法和配置决策。
-- docs/PRIVACY.md：分享策略与边界。
-- docs/INTERVIEW.md：演示顺序、简历表述、面试问题。
-- docs/ACCEPTANCE.md：验收方法与已知限制。
-- docs/step*.md、docs/progress.md：开发过程记录，可能描述历史状态，以本 README 为准。
-
-## 第一版边界
-
-仅固定 combined 格式；没有原生 Nginx 配置验证、生产流量准确率评估、实时监控、大文件性能保证、可信代理链解析、通用攻击识别或自动封禁。敏感路径规则不解码或规范化 URL；行为规则每 IP 只输出首个命中窗口。HTTP 状态码不能证明攻击成功。
+手册中的acceptance/...引用是开发机历史证据，不在源码ZIP内；按手册命令可生成自己的新实验材料，不应把缺失历史目录当作运行依赖。源码与清单校验一致只证明内容一致，不证明来源可信或通过全面安全审计。

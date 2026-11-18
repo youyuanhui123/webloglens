@@ -1,51 +1,50 @@
-# 第一版验收说明
+# 验收说明（2.0.0）
 
-## 本次真实验收结果
+## 范围
 
-开发工作区 acceptance/v1.0.0/ 已保存实际执行输出：Python 3.11 下 34 个测试通过，Python 3.15 下 34 个测试通过。真实本地实验的 baseline/mixed/normal-wide 均按预期完成，私有 JSON/Markdown 与分享 JSON/Markdown 已实际生成，服务端口关闭验证均通过。便携包另做解压搬迁复验，最终结果见发布交付说明。
+Windows Python3.11.9/3.15.1；核心无Python第三方依赖。测试覆盖批量历史入口、解析/统计/配置/分享、实时跟随边界、增量窗口/迟到/容量、真实追加与回放对照、阶段报告、基线入口和便携包。
 
-## 复核补充
+套件共72项；默认跳过2个Docker/Nginx集成，启用后须全部实际执行。包含本机HTTP与真实子进程，不应全部称作单元测试。以下是复验方法，实际输出保存在开发机acceptance/，不会进入源码ZIP。
 
-一键实验 summary.json 内的报告引用改为相对路径；回归测试覆盖中文证据目录、不同工作目录、整体移动目录后引用仍有效，以及重复运行不覆盖历史证据。私有报告中的原始来源路径保留为采集时证据元数据，不作为搬迁后的链接使用。
+## 默认复验（CMD，项目根）
 
-## 验收范围
-
-受控 Windows 环境，Python 3.11 与 Python 3.15；无第三方运行依赖。核心测试包含：解析/错误行、统计与路径聚合、敏感路径规则、UTC 与滑动窗口边界、配置校验与覆盖、分享版字段剔除、JSON/Markdown 导出、文件覆盖保护、本机真实 HTTP、服务关闭及便携包搬迁。
-
-## 复验命令
-
-```text
-python --version
+```cmd
 python analyze.py --version
 python -m unittest discover -s tests -v
-python run_experiment.py
-python build_release.py --output dist/recheck.zip
+python watch.py examples/synthetic_sensitive.log --replay --min-paths 3 --output docs/check-events.jsonl
+python report_events.py docs/check-events.jsonl --output docs/check-stage.md
 ```
 
-运行前输出文件须不存在；实验路径自动生成。对每个场景检查 access.log 与 manifest.json 的请求一致，report.json 与 Markdown 的数量一致，share.json 与私有版总数一致，summary.json 的 all_passed 为 true 且端口关闭验证为 true。
+样例5条成功请求、2条精确路径+1条窗口线索；确认quality而不只看退出码。输出文件须不存在；重复运行请换名。
 
-便携包可解压到新目录并重复上述测试。包中 RELEASE-MANIFEST.json 记录相对文件 SHA-256，不包含自身哈希；文件数量加上清单本身才是 ZIP 总成员数。
+## Docker集成（可选，但不等同默认跳过的结果）
 
-## 实验期望（不是检测准确率）
+需要引擎运行及本地nginx:alpine镜像；不拉取、不修改已有容器。Windows CMD：
 
-| 场景 | 请求数 | 敏感路径线索 | 行为线索 |
-|---|---:|---:|---:|
-| baseline | 6 | 0 | 0 |
-| mixed | 6 | 2 | 1 |
-| normal-wide | 5 | 0 | 1 |
+```cmd
+set WEBLOGLENS_NGINX_TEST=1
+python -m unittest discover -s tests -v
+set WEBLOGLENS_NGINX_TEST=
+```
 
-正常浏览命中行为规则是刻意保留的边界，不是独立恶意标签。三个场景不足以计算代表性的误报率或准确率。
+正常/混合/正常多页面场景预期请求6/6/5、路径线索0/2/0、窗口线索0/1/1。正常多页面命中并不证明攻击；另有中途请求失败后的清理检查。端口无监听与TIME_WAIT可同时存在。
 
-## 发布前检查
+## 发布包复验
 
-- 阅读源码、规则和合成样例，确认未写入真实秘密。
-- 只发布白名单生成包，不直接压缩整个工作区。
-- 不将私有实验目录或终端中的本地路径截图公开。
-- --redact-share 不是完整匿名化保证，分享前人工复核。
-- 测试通过不代表生产环境性能、安全性或合规认证。
+```cmd
+python build_release.py --output dist/my-recheck.zip
+```
 
-## 明确尚未覆盖
+先确认白名单文件没有真实秘密。ZIP成员都在WebLogLens/下，RELEASE-MANIFEST.json列出除清单本身之外的文件及SHA-256；成员数等于file_count+1。私有acceptance/experiments、学习日志、缓存及环境不进入包。
 
-原生 Nginx 独立部署验证、生产流量效果评估、WSL 独立实机验收、实时采集、可信代理链、大文件容量保证、事务式输出和任意格式日志。第一版不承诺自动判定攻击成功或自动防御。
+解压到新的中文路径；以非项目cwd运行绝对路径analyze.py --version、默认分析、watch静态样例回放与report_events双格式；然后在解压根对两解释器各跑全套测试。启用Docker时需明确72项均执行；只跑默认套件时明确有2项跳过。打包后不能继续改包内源码而沿用旧包验收，改动必须重建新包再验证。
 
-具体发布验收输出保存在开发工作区的 acceptance/，不将本地私有验收日志打进分享源码包。以实际执行结果为准，不把本文复验方法当作已经运行的证据。
+发布回归本身也在临时中文目录构建并解压包，核对全部文件哈希、拒绝覆盖以及新增实时入口。完整双解释器搬迁验收由开发机单独留证，不递归从测试中再跑全套。
+
+## 历史证据与新的复现
+
+开发机保留acceptance/v1.0.0、v2-input、v2-core、v2-nginx、v2-report、v2-baseline及v2.0.0-release；源码包不携带这些原始证据。NGINX-LAB、EVENT-REPORT和BASELINE手册中引用的历史路径仅为证据位置，不是运行依赖。新机器从包内synthetic样例生成自己的事件和报告，或按实验脚本重新采集，不虚构缺失材料。
+
+## 明确限制
+
+测试不证明生产准确率、合规、全面安全审计或长期稳定性。未验证WSL独立部署、生产高并发、RSS/工作集、多小时泄漏、可信代理归因、强恢复和业务负载下的无损轮转。版本2.0不包含新增报告的公开分享模式；旧analyze分享视图也不保证匿名。

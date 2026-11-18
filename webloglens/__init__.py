@@ -1,3 +1,3 @@
-"""WebLogLens: offline access-log triage, Python standard library only."""
+"""WebLogLens: historical and live access-log triage, standard library only."""
 
-__version__ = '1.0.0'
+__version__ = '2.0.0'

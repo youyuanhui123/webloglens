@@ -10,11 +10,15 @@ import zipfile
 from webloglens import __version__
 
 ROOT_FILES = ['README.md', '.gitignore', 'analyze.py', 'run_experiment.py', 'build_release.py',
-              'main.py', 'read_demo.py', 'stats_demo.py', 'detect_demo.py']
-MODULES = ['__init__', 'parser', 'reader', 'stats', 'detector', 'behavior', 'config', 'report', 'privacy', 'local_lab']
+              'main.py', 'read_demo.py', 'stats_demo.py', 'detect_demo.py',
+              'watch.py', 'report_events.py', 'run_nginx_experiment.py', 'run_baseline.py']
+MODULES = ['__init__', 'parser', 'reader', 'stats', 'detector', 'behavior', 'config', 'report', 'privacy',
+           'local_lab', 'follow', 'stream', 'event_report', 'nginx_lab']
 TESTS = ['parser', 'reader', 'stats', 'detector', 'behavior', 'config', 'report', 'privacy',
-         'cli', 'local_lab', 'experiment_runner', 'release']
-DOCS = ['QUICKSTART', 'ARCHITECTURE', 'PRIVACY', 'INTERVIEW', 'ACCEPTANCE']
+         'cli', 'local_lab', 'experiment_runner', 'release', 'follow', 'watch_cli', 'stream',
+         'stream_cli', 'nginx_lab', 'nginx_runner_cli', 'event_report', 'event_report_cli', 'baseline']
+DOCS = ['QUICKSTART', 'ARCHITECTURE', 'PRIVACY', 'INTERVIEW', 'ACCEPTANCE',
+        'V2-REALTIME', 'NGINX-LAB', 'EVENT-REPORT', 'BASELINE']
 FILES = (ROOT_FILES + [f'webloglens/{name}.py' for name in MODULES]
          + [f'tests/test_{name}.py' for name in TESTS]
          + [f'docs/{name}.md' for name in DOCS]

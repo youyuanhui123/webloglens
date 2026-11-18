@@ -1,64 +1,91 @@
-# 快速运行
+# 快速运行（2.0.0）
 
-## PyCharm（优先）
+## PyCharm
 
-1. 解压便携包，用“文件 -> 打开”选择含 analyze.py 的整个 WebLogLens 目录。
-2. 设置项目解释器为 Python 3.11 或更新版本；不需要安装第三方包。
-3. 右键 analyze.py -> 运行：默认在控制台显示合成样例的 JSON。
-4. 右键 run_experiment.py -> 运行：自动产生三组本地真实实验和双格式私有/分享报告。
-5. 运行 -> 编辑配置 -> 选择 analyze -> 脚本形参填写：
+打开解压后含watch.py的整个WebLogLens目录，解释器选择Python3.11或更新版本，工作目录设项目根，无需安装Python第三方包。
+
+1. 右键analyze.py运行，可看到保留的批量分析样例；版本用CMD的 `python analyze.py --version` 查看。
+2. 编辑watch运行配置，脚本形参：
 
 ```text
-"examples/synthetic_burst.log" --data-kind synthetic --redact-share --format markdown --output "docs/share-report.md"
+examples/synthetic_sensitive.log --replay --min-paths 3 --output docs/demo-events.jsonl
 ```
 
-工作目录设为项目根目录。形参中不重复填 python.exe 或 analyze.py。相对路径按工作目录解释；默认配置和默认样例按脚本位置定位。
+3. 运行report_events.py，脚本形参：
+
+```text
+docs/demo-events.jsonl --output docs/demo-stage.md
+```
+
+4. 打开docs/demo-stage.md，核对5条请求、3条线索、质量标记和证据样本。
+
+形参不重复解释器或脚本名。再次运行换文件名，不覆盖已有报告。输出仍为私有；样例虽然是合成的，实际日志不能照此直接公开。
 
 ## Windows CMD
 
-在资源管理器进入项目目录，在地址栏输入 cmd 打开终端，然后：
+资源管理器打开项目目录，在地址栏输入cmd。若从别处进入，使用 `cd /d "实际项目路径"`。完整最小演示：
 
-```bat
+```cmd
 python --version
 python analyze.py --version
-python run_experiment.py
+python watch.py examples/synthetic_sensitive.log --replay --min-paths 3 --output docs/demo-events.jsonl
+python report_events.py docs/demo-events.jsonl --output docs/demo-stage.md
+python report_events.py docs/demo-events.jsonl --format json --output docs/demo-stage.json
 python -m unittest discover -s tests -v
 ```
 
-如 python 不是期望的解释器，将 python 替换为 PyCharm 展示的解释器完整路径并加引号。若从其他目录进入，CMD 使用 cd /d "实际项目路径"。不要在 bash 中使用 /d 或 %PY% 语法。
+默认测试跳过2个Docker集成；会运行本机HTTP实验与短watch基线，不是纯单元测试。本机需允许回环端口监听。
 
-## WSL bash（可选）
+## 实时观察授权日志
+
+```cmd
+python watch.py "D:\logs\access.log" --detect --output "D:\logs\my-events.jsonl"
+```
+
+文件与输出父目录须存在，输出文件须不存在。默认从末尾开始；--start beginning可读取已有内容。Ctrl+C正常结束后：
+
+```cmd
+python report_events.py "D:\logs\my-events.jsonl" --output "D:\logs\my-stage.md"
+```
+
+未加--detect的watch只读取解析，不做检测。正在写入或异常结束的事件文件也能生成质量告警报告；生成成功不等于事件完整或安全。
+
+## 保留的批量入口与分享
+
+```cmd
+python analyze.py examples/synthetic_burst.log --data-kind synthetic --format markdown
+python analyze.py examples/synthetic_burst.log --data-kind synthetic --redact-share --format markdown --output docs/batch-share.md
+```
+
+--redact-share只适配analyze报告，不适用于watch JSONL或新阶段报告。--data-kind只是调用者声明，不证明来源或授权。
+
+## 可选实验和基线
+
+```cmd
+python run_experiment.py
+python run_baseline.py --output experiments/my-baseline
+python run_nginx_experiment.py
+```
+
+前两个不需要Docker；run_experiment建立本地固定响应HTTP服务。Nginx实验需要Docker引擎及本地nginx:alpine镜像，不自动拉取、不改已有容器，完成后清理本次临时容器。Nginx实验详细材料见NGINX-LAB.md。
+
+## WSL bash（仅用法示例）
 
 ```bash
 cd /你的项目路径/WebLogLens
-python3 --version
-python3 analyze.py --version
-python3 analyze.py examples/synthetic_burst.log --data-kind synthetic
+python3 watch.py examples/synthetic_sensitive.log --replay
 ```
 
-WSL 仅是使用示例，第一版当前实机验收为 Windows Python 3.11/3.15，不宣称已在 WSL 独立验收。
+实机覆盖为Windows Python3.11/3.15，不宣称本版已在WSL独立验收。不要在bash中照搬CMD的 /d 或 %PY% 语法。
 
-## 自己的授权日志
+## 打包
 
-```text
-python analyze.py "日志的绝对路径" --data-kind authorized --format markdown --output "docs/authorized-private.md"
-```
-
-必须是本工具支持的 combined 格式及 UTF-8 编码。先看 parsing 的 errors，不能只看退出码。不要把公开网站访问权限当作日志获取或渗透授权。
-
-## 输出与错误
-
-- 0：分析流程完成；不意味着没有坏行或没有风险。
-- 1：输入读取/编码或输出写入失败。
-- 2：命令行或配置无效。
-- 已有输出拒绝覆盖，请更换文件名；输出父目录须存在。
-- 一键实验需要本机允许回环端口监听；失败应排查错误，不用合成日志冒充真实结果。
-- --format 不根据输出扩展名自动推断。
-
-## 发布源码便携包
-
-```text
+```cmd
 python build_release.py
 ```
 
-默认写入 dist/WebLogLens-1.0.0.zip；已有包拒绝覆盖。可用 --output 指定新位置。包内 RELEASE-MANIFEST.json 记录相对文件名及 SHA-256，不含实验原始证据。解压后不需安装，直接运行。
+默认生成dist/WebLogLens-2.0.0.zip，已有包拒绝覆盖。可用--output指定新文件。包内RELEASE-MANIFEST.json记录相对路径和SHA-256；不包含清单自身哈希，也不含私有实验证据。验收方法见ACCEPTANCE.md。
+
+## 错误与质量
+
+输出父目录须存在、文件须不存在；格式用--format显式选择，不按扩展名猜测。无效参数、配置或文件错误非零退出。退出0只表示流程成功，不保证没有坏行、迟到或容量排除；必须同时查看摘要与quality。
