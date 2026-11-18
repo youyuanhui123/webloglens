@@ -1,0 +1,5 @@
+192.0.2.10 - - [05/Nov/2026:10:01:00 +0800] "GET / HTTP/1.1" 200 128 "-" "LearningClient/1.0"
+192.0.2.10 - - [05/Nov/2026:10:01:01 +0800] "GET /.env HTTP/1.1" 404 64 "-" "LearningClient/1.0"
+192.0.2.10 - - [05/Nov/2026:10:01:02 +0800] "GET /.git/config?download=1 HTTP/1.1" 200 128 "-" "LearningClient/1.0"
+192.0.2.10 - - [05/Nov/2026:10:01:03 +0800] "GET /login?next=/.env HTTP/1.1" 200 128 "-" "LearningClient/1.0"
+192.0.2.10 - - [05/Nov/2026:10:01:04 +0800] "GET /.env.example HTTP/1.1" 404 64 "-" "LearningClient/1.0"

@@ -1,0 +1,7 @@
+192.0.2.10 - - [05/Nov/2026:10:00:40 +0800] "GET /robots.txt HTTP/1.1" 200 64 "-" "LearningClient/1.0"
+192.0.2.10 - - [05/Nov/2026:10:00:00 +0800] "GET / HTTP/1.1" 200 64 "-" "LearningClient/1.0"
+192.0.2.10 - - [05/Nov/2026:10:00:10 +0800] "GET /.env HTTP/1.1" 404 64 "-" "LearningClient/1.0"
+192.0.2.20 - - [05/Nov/2026:10:00:12 +0800] "GET / HTTP/1.1" 200 64 "-" "Browser/1.0"
+192.0.2.10 - - [05/Nov/2026:10:00:20 +0800] "GET /.git/config HTTP/1.1" 404 64 "-" "LearningClient/1.0"
+192.0.2.10 - - [05/Nov/2026:10:00:25 +0800] "GET /.env?check=1 HTTP/1.1" 404 64 "-" "LearningClient/1.0"
+192.0.2.10 - - [05/Nov/2026:10:00:30 +0800] "GET /admin HTTP/1.1" 404 64 "-" "LearningClient/1.0"

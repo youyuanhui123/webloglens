@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.idea/
+.env
+.env.*
+experiments/
+acceptance/
+dist/
+*.zip
+# Historical generated reports remain private unless deliberately curated.
+docs/*.json
+docs/progress.md
+docs/step*.md
+docs/config-*.md
+docs/*report*.md
+# Do not commit arbitrary access logs; curated synthetic examples are explicit.
+*.log
+!examples/synthetic_access.log
+!examples/synthetic_sensitive.log
+!examples/synthetic_burst.log

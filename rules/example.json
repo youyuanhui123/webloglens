@@ -1,0 +1,5 @@
+{
+  "sensitive_paths": ["/.env", "/.git/config", "/admin", "/backup.zip"],
+  "window_seconds": 90,
+  "min_paths": 8
+}
