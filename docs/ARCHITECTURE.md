@@ -1,57 +1,57 @@
-# 架构与设计（2.0.0）
+# 架构与设计（3.0.0）
 
-## 两条分析路径
+## 主干数据流
 
 ```text
-批量analyze → reader/parser → 全量统计/精确路径/UTC排序首窗口
-                                             ↓
-                                 私有报告 / 可选旧结构分享视图
-                                             ↓
-                                        JSON/Markdown
+analyze → combined reader/parser → 全量统计/UTC排序首窗口 → 旧结构报告/可选分享
 
-实时watch / 静态文件原顺序replay → follow/parser → stream增量核心
-                                                      ↓
-                                              私有JSONL事件
-                                                      ↓
-                                       event_report独立核对与汇总
-                                                      ↓
-                                           私有JSON/Markdown
+watch/replay → follow新增完整行 → ingest显式格式
+                                 ├─ combined → StreamAnalyzer
+                                 └─ nginx-json → SiteAnalyzer → 每站点StreamAnalyzer
+                                                       ↓
+                                         顶层record / finding / 诊断 / summary
+                                                       ↓
+                                      单JSONL 或 可选分片目录→完整拼接
+                                                       ↓
+                          ┌────────────────────────────┴─────────────────┐
+                    event_report独立核对                            SQLite派生索引
+                          ↓                                             ↓
+                   JSON/Markdown阶段报告                    条件查询 / 来源时间线
 ```
 
-analyze保留第一版整批读取与全量排序，不等于恒定内存；watch/replay不反复重扫全文件，不把所有历史记录永久留存。它们复用解析、精确路径及时间解析逻辑，但窗口策略不同，不承诺任意输入结果恒等。
+analyze 保留第一版批量读取与全量排序，不是恒定内存。watch/replay 增量读取，不每秒重扫全文件；它们使用有限乱序策略，不能冒充全量排序或保证与 analyze 任意输入恒等。
 
 ## 输入与来源
 
-固定UTF-8 combined。批量reader兼容BOM，保留物理行号与去换行raw；实时follow有界读取新增字节，半行等待，超长行有界恢复，处理轮转/截断/路径缺失并明确事件。来源定位为路径、运行内generation和字节offset；从末尾启动未知物理行号为null，不能伪造。raw不是字节级归档，原日志仍需保留。轮转竞争、旧文件交接后迟到追加、快速copytruncate仍有限制，不承诺exactly-once。
+combined 和约定 `webloglens-nginx-1` JSON 显式选择，不猜格式。JSON 模板采用 `escape=json`；site 来自受控 Nginx `$server_name`，IP 使用连接来源，不把任意 Host/XFF 当可信身份。额外字段、时间和数值的约束见 V3-INPUT。
 
-## 路径
+follow 有界读取新增字节，完整行才解析，半行等待；超长行有界恢复。路径、运行内 generation、字节 offset 和原文保留；从末尾启动未知物理行号为 null。raw 不是字节级归档，原日志仍需保留。轮转、快速 copytruncate 和旧文件交接竞态不承诺无损或 exactly-once。
 
-target保留原样，派生路径只去第一个问号后的查询串，不URL解码、转小写或折叠斜杠。/a%2Fb与/a/b不同；编码变体漏报是已知边界。仅面向常见origin-form，不做通用URI规范化。
+## 时间、站点与资源
 
-## 时间和有限状态
+- target 保留原样，派生路径只去第一个问号后查询，不 URL 解码或折叠。
+- 批量行为按 IP 全量 UTC 排序；增量核心采用事件时间小顶堆、水位、有限乱序和冷却，tick 以单调处理时间判断 idle。
+- 默认乱序 2 秒、窗口 60 秒、不同路径阈值 5、冷却 60 秒。每核心 max_buffer=512、max_window_records=2048、max_ips=256。
+- JSON 每站点独立核心，窗口、水位、冷却、idle 都隔离；默认最多准入 16 个站点，范围 1..128，整个运行首次准入，不静默回收重置。每核心预算乘站点上限才是总预算上界。
+- 过迟/坏时间/容量排除仍保留请求统计与精确路径线索，明确留诊断。超站点容量不伪装解析失败。
+- 检测 finish 在 EOF/正常退出刷新；不提供跨运行恢复协议。
 
-- 批量behavior按IP分组，将带时区时间转UTC，全量排序；闭区间窗口，每IP仅保留首个满足阈值的线索。
-- stream使用事件时间小顶堆、有限乱序和水位，路径即时匹配，行为按提交顺序更新IP窗口；冷却抑制重叠窗口，状态过期清理。
-- 默认乱序2秒、窗口60秒、min_paths=5、冷却60秒；max_buffer=512、max_window_records=2048、max_ips=256。
-- 过迟和坏时间仍参与请求统计及精确路径，排除行为窗口并发事件；容量不足也明确排除，不静默当作安全。
-- tick按单调处理时间判断idle，空闲flush；finish在EOF/正常结束刷新。有限状态细节见V2-REALTIME.md。
+## 输出与调查
 
-## 配置与输出
+默认配置相对入口定位，显式命令行覆盖已验证配置。started 保存模式/格式/设置，summary 保存计数和检测状态。运行健康与分片协议见 V3-RUNTIME。
 
-默认配置相对入口文件定位，不依赖cwd；显式CLI阈值覆盖所选配置，拒绝非法配置而非回退。默认敏感路径为/.env、/.git/config。
+阶段报告独立核对顶层事件和退出摘要；finding 的 evidence 不重复算请求。`event_stream_complete` 与 `analysis_has_gaps` 分开。有限结构核对不是来源真实性认证。
 
-批量schema_version=1.1，阶段报告schema_version=stream-report-1.0；版本号2.0.0不意味着旧报告schema强制变更。watch事件为单次started、记录/诊断/线索、正常退出summary，当前没有跨运行恢复协议。
+SQLite 使用 Python 自带 sqlite3，不需安装或启动数据库服务。完整静态事件先有界暂存、质量核对，再事务导入；显式追加、SHA 去重。runs 保留源哈希与质量，events 保存顶层事件和定位，evidence_links 关联既有线索。实时与回放可以是不同 run，不能据此当成不同真实访问。
 
-阶段报告独立计数并核对summary，不重新跑规则、不重复计算finding里的引用证据。有界读取单个事件、有界样本、全输入字节哈希；event_stream_complete与analysis_has_gaps分开。有限交叉核对不等于完整schema验证或可信来源证明。
+query 使用绑定参数和有界返回；timeline 只排序访问事实并关联既有线索，不再跑检测、不推断攻击链。SQLite 文件是可重建派生物，原事件不修改。路径/时间/返回预算与关联限制见 V3-INDEX。
 
-动态值只放代码文本，拒绝覆盖输出；写盘中断可能留下部分文件，不保证事务或断电可靠。新增报告只私有，旧分享模块只适配批量报告。
+JSON 与 Markdown 基于同一结果；动态值使用安全代码文本显示。显示转义不等于脱敏，本地默认保留原文。
 
-## 实验边界
+## 验证与不做
 
-run_experiment建立回环HTTPServer；run_nginx_experiment使用本地已有镜像启动回环Nginx，固定文本响应，不读取真实敏感文件，不访问外部站点。只清理本次容器，Windows清理以无监听和容器移除为准，不把TIME_WAIT当服务残留。
+实验只用回环固定响应服务；Docker 仅已有本地镜像，不读取真实敏感文件，不请求外站，只清理本次拥有的容器。Windows 无监听与 TIME_WAIT 分开判断。
 
-run_baseline分开测核心与真实watch短时延迟，使用Python分配追踪，不是RSS或生产容量测试。详细口径见BASELINE.md。
+资源初始基线采用 tracemalloc，不是 RSS；短时延迟只针对精确路径线索。持续运行收尾测试范围见 RELEASE-3.0.0，不冒充生产容量保证。
 
-## 不做
-
-远程多机采集、可信代理链解析、HTTPS还原、自动封禁、攻击成功判定、强断点恢复、生产准确率保证和长期容量承诺。分析入口不联网、不执行日志中的表达式；实验脚本是显式建立回环服务的独立入口。
+不做远程多机采集、可信代理链归因、自动封禁、入侵成功判定、强断点恢复、生产准确率承诺。分析入口不联网、不执行日志中的表达式。

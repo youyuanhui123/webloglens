@@ -1,25 +1,28 @@
-# 验收说明（2.0.0）
+# 验收说明（3.0.0）
 
-## 范围
+## 范围与口径
 
-Windows Python3.11.9/3.15.1；核心无Python第三方依赖。测试覆盖批量历史入口、解析/统计/配置/分享、实时跟随边界、增量窗口/迟到/容量、真实追加与回放对照、阶段报告、基线入口和便携包。
+核心 Python 标准库，无额外数据库服务。实机解释器 Windows Python 3.11.9 与 3.15.1。覆盖批量历史入口、combined/约定 JSON 解析、站点隔离、增量检测、实时追加/回放、阶段报告、SQLite 查询、滚动与保留、健康状态及发布包。
 
-套件共72项；默认跳过2个Docker/Nginx集成，启用后须全部实际执行。包含本机HTTP与真实子进程，不应全部称作单元测试。以下是复验方法，实际输出保存在开发机acceptance/，不会进入源码ZIP。
+测试包含真实本机 HTTP 和子进程，不能统称纯单元测试。默认跳过两个显式 Docker 集成，启用后应全部实际执行。发布实际测试数量与时长记录在 RELEASE-3.0.0 及开发机 acceptance/v3.0.0-release；不沿用旧版 72/87/98 项作为当前数量。
 
-## 默认复验（CMD，项目根）
+## 默认复验（Windows CMD，项目根）
 
 ```cmd
 python analyze.py --version
 python -m unittest discover -s tests -v
-python watch.py examples/synthetic_sensitive.log --replay --min-paths 3 --output docs/check-events.jsonl
-python report_events.py docs/check-events.jsonl --output docs/check-stage.md
+python check_input.py examples/synthetic_sites.jsonl --log-format nginx-json
+python watch.py examples/synthetic_sites.jsonl --log-format nginx-json --replay --min-paths 2 --output docs/check-v3.jsonl
+python report_events.py docs/check-v3.jsonl --output docs/check-v3.md
+python investigate.py import docs/check-v3.jsonl --database docs/check-v3.sqlite
+python investigate.py timeline docs/check-v3.sqlite --run-id 1 --site a.local --ip 192.0.2.10
 ```
 
-样例5条成功请求、2条精确路径+1条窗口线索；确认quality而不只看退出码。输出文件须不存在；重复运行请换名。
+输出名称须不存在。合成样例四条请求、两个站点各一条窗口线索，a.local 时间线两条请求。观察质量而不只看 exit 0。
 
-## Docker集成（可选，但不等同默认跳过的结果）
+## Docker 集成
 
-需要引擎运行及本地nginx:alpine镜像；不拉取、不修改已有容器。Windows CMD：
+需要运行中的引擎与已有 nginx:alpine 镜像，不拉取，不改已有容器：
 
 ```cmd
 set WEBLOGLENS_NGINX_TEST=1
@@ -27,24 +30,26 @@ python -m unittest discover -s tests -v
 set WEBLOGLENS_NGINX_TEST=
 ```
 
-正常/混合/正常多页面场景预期请求6/6/5、路径线索0/2/0、窗口线索0/1/1。正常多页面命中并不证明攻击；另有中途请求失败后的清理检查。端口无监听与TIME_WAIT可同时存在。
+combined 三场景预期请求 6/6/5、精确路径线索 0/2/0、窗口线索 0/1/1。正常多页面也命中是已知反例，不计算生产准确率。集成还检查中途失败清理，Windows 无监听与 TIME_WAIT 分开看。
 
-## 发布包复验
+第三版开发验收另有真实 Nginx JSON 双站点实验：六条请求、四条线索，首两条分属不同站点不形成跨站窗口。输出分片验收在真实采集后的原始日志回放及持续追加场景上核对完整拼接、报告和索引；主动删除/缺片不得被拼接成完整事件。
+
+## 发布复验
 
 ```cmd
 python build_release.py --output dist/my-recheck.zip
 ```
 
-先确认白名单文件没有真实秘密。ZIP成员都在WebLogLens/下，RELEASE-MANIFEST.json列出除清单本身之外的文件及SHA-256；成员数等于file_count+1。私有acceptance/experiments、学习日志、缓存及环境不进入包。
+发布前复核白名单文件，ZIP 内仅 WebLogLens/ 下源码、文档、测试、配置和合成示例。RELEASE-MANIFEST.json 的 file_count 不含清单本身，逐文件哈希对应归档字节。不含原始验收数据、数据库、真实日志、学习记录、缓存或环境。
 
-解压到新的中文路径；以非项目cwd运行绝对路径analyze.py --version、默认分析、watch静态样例回放与report_events双格式；然后在解压根对两解释器各跑全套测试。启用Docker时需明确72项均执行；只跑默认套件时明确有2项跳过。打包后不能继续改包内源码而沿用旧包验收，改动必须重建新包再验证。
+解压到新的中文路径，在非项目 cwd 运行版本、默认分析、JSON 回放、阶段报告、SQLite 导入/时间线、分片/拼接。源码树和解压树对两解释器各跑完整测试，实际记录数量/跳过数。默认套件的两项跳过不能描述为 Docker 通过。
 
-发布回归本身也在临时中文目录构建并解压包，核对全部文件哈希、拒绝覆盖以及新增实时入口。完整双解释器搬迁验收由开发机单独留证，不递归从测试中再跑全套。
+打包后不可继续改包内文件却沿用原验收；有改动要生成新包并重验。旧正式 ZIP 不覆盖。窄 token 特征扫描仅辅助检查，不是全面安全审计或秘密不存在的证明。
 
-## 历史证据与新的复现
+## 留存证据
 
-开发机保留acceptance/v1.0.0、v2-input、v2-core、v2-nginx、v2-report、v2-baseline及v2.0.0-release；源码包不携带这些原始证据。NGINX-LAB、EVENT-REPORT和BASELINE手册中引用的历史路径仅为证据位置，不是运行依赖。新机器从包内synthetic样例生成自己的事件和报告，或按实验脚本重新采集，不虚构缺失材料。
+开发机 acceptance/ 保存各版真实输出、失败记录及复验结果，不放进源码 ZIP。包内示例和入口不依赖这些历史绝对路径；新机器自行生成报告和实验数据。study.md 是学习记录，不在发布白名单，是否随 Git 仓库上传单独决定。
 
-## 明确限制
+## 不声称
 
-测试不证明生产准确率、合规、全面安全审计或长期稳定性。未验证WSL独立部署、生产高并发、RSS/工作集、多小时泄漏、可信代理归因、强恢复和业务负载下的无损轮转。版本2.0不包含新增报告的公开分享模式；旧analyze分享视图也不保证匿名。
+测试通过不证明生产准确率、合规、高并发容量、无损轮转、强断电恢复或多小时无泄漏。tracemalloc 不等于 RSS；短时连续运行不等于生产长期验证。WSL 未独立做本次发布验收。本地保留原文，公开真实资料前检查敏感信息即可，不强制新增脱敏系统。

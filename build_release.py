@@ -11,18 +11,19 @@ from webloglens import __version__
 
 ROOT_FILES = ['README.md', '.gitignore', 'analyze.py', 'run_experiment.py', 'build_release.py',
               'main.py', 'read_demo.py', 'stats_demo.py', 'detect_demo.py',
-              'watch.py', 'report_events.py', 'run_nginx_experiment.py', 'run_baseline.py']
+              'watch.py', 'report_events.py', 'run_nginx_experiment.py', 'run_baseline.py', 'check_input.py', 'investigate.py', 'assemble_events.py']
 MODULES = ['__init__', 'parser', 'reader', 'stats', 'detector', 'behavior', 'config', 'report', 'privacy',
-           'local_lab', 'follow', 'stream', 'event_report', 'nginx_lab']
+           'local_lab', 'follow', 'stream', 'event_report', 'nginx_lab', 'ingest', 'site_stream', 'event_index', 'output']
 TESTS = ['parser', 'reader', 'stats', 'detector', 'behavior', 'config', 'report', 'privacy',
          'cli', 'local_lab', 'experiment_runner', 'release', 'follow', 'watch_cli', 'stream',
-         'stream_cli', 'nginx_lab', 'nginx_runner_cli', 'event_report', 'event_report_cli', 'baseline']
+         'stream_cli', 'nginx_lab', 'nginx_runner_cli', 'event_report', 'event_report_cli', 'baseline', 'ingest', 'site_stream', 'event_index', 'output', 'runtime_cli']
 DOCS = ['QUICKSTART', 'ARCHITECTURE', 'PRIVACY', 'INTERVIEW', 'ACCEPTANCE',
-        'V2-REALTIME', 'NGINX-LAB', 'EVENT-REPORT', 'BASELINE']
+        'V2-REALTIME', 'NGINX-LAB', 'EVENT-REPORT', 'BASELINE', 'V3-INPUT', 'V3-SITES', 'V3-INDEX', 'V3-RUNTIME', 'RELEASE-3.0.0']
 FILES = (ROOT_FILES + [f'webloglens/{name}.py' for name in MODULES]
          + [f'tests/test_{name}.py' for name in TESTS]
          + [f'docs/{name}.md' for name in DOCS]
-         + ['rules/default.json', 'rules/example.json']
+         + ['rules/default.json', 'rules/example.json', 'examples/nginx-json-format.conf',
+            'examples/synthetic_nginx.jsonl', 'examples/synthetic_sites.jsonl']
          + [f'examples/synthetic_{name}.log' for name in ['access', 'sensitive', 'burst']])
 
 if __name__ == '__main__':

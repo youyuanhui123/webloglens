@@ -1,0 +1,4 @@
+{"schema":"webloglens-nginx-1","time":"2026-11-18T10:00:40+08:00","ip":"192.0.2.10","method":"GET","target":"/a","protocol":"HTTP/1.1","status":200,"body_bytes":12,"site":"a.local","request_time":0.001,"request_id":"synthetic-site-1"}
+{"schema":"webloglens-nginx-1","time":"2026-11-18T10:00:00+08:00","ip":"192.0.2.10","method":"GET","target":"/b","protocol":"HTTP/1.1","status":200,"body_bytes":12,"site":"b.local","request_time":0.001,"request_id":"synthetic-site-2"}
+{"schema":"webloglens-nginx-1","time":"2026-11-18T10:00:41+08:00","ip":"192.0.2.10","method":"GET","target":"/c","protocol":"HTTP/1.1","status":200,"body_bytes":12,"site":"a.local","request_time":0.001,"request_id":"synthetic-site-3"}
+{"schema":"webloglens-nginx-1","time":"2026-11-18T10:00:01+08:00","ip":"192.0.2.10","method":"GET","target":"/d","protocol":"HTTP/1.1","status":200,"body_bytes":12,"site":"b.local","request_time":0.001,"request_id":"synthetic-site-4"}

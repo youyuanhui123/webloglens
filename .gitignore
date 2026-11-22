@@ -9,12 +9,22 @@ experiments/
 acceptance/
 dist/
 *.zip
+# Private derived event stores and their SQLite sidecars.
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+*.jsonl
+!examples/synthetic_nginx.jsonl
+!examples/synthetic_sites.jsonl
 # Historical generated reports remain private unless deliberately curated.
 docs/*.json
+docs/*.jsonl
 docs/progress.md
 docs/step*.md
 docs/config-*.md
 docs/*report*.md
+docs/*stage*.md
 # Do not commit arbitrary access logs; curated synthetic examples are explicit.
 *.log
 !examples/synthetic_access.log

@@ -1,4 +1,20 @@
-# 快速运行（2.0.0）
+# 快速运行（3.0.0）
+
+## 第三版接入与回查（CMD，项目根）
+
+```cmd
+python check_input.py examples/synthetic_sites.jsonl --log-format nginx-json
+python watch.py examples/synthetic_sites.jsonl --log-format nginx-json --replay --min-paths 2 --output docs/quick-v3.jsonl
+python report_events.py docs/quick-v3.jsonl --output docs/quick-v3.md
+python investigate.py import docs/quick-v3.jsonl --database docs/quick-v3.sqlite
+python investigate.py query docs/quick-v3.sqlite --run-id 1 --site a.local
+python investigate.py timeline docs/quick-v3.sqlite --run-id 1 --site a.local --ip 192.0.2.10
+```
+
+四条合成请求分属两个站点，各产生一条窗口线索；a.local 的来源时间线有两条请求。站点是配置标签，不需要访问公网域名；SQLite 是指定路径的本地文件，不需安装服务器。输出名称须不存在。
+
+分片、保留、完整拼接和运行健康见 [V3-RUNTIME.md](V3-RUNTIME.md)。下文保留 combined 入门方式，批量 analyze 仍只处理 combined。
+
 
 ## PyCharm
 
@@ -84,7 +100,7 @@ python3 watch.py examples/synthetic_sensitive.log --replay
 python build_release.py
 ```
 
-默认生成dist/WebLogLens-2.0.0.zip，已有包拒绝覆盖。可用--output指定新文件。包内RELEASE-MANIFEST.json记录相对路径和SHA-256；不包含清单自身哈希，也不含私有实验证据。验收方法见ACCEPTANCE.md。
+默认生成dist/WebLogLens-3.0.0.zip，已有包拒绝覆盖。可用--output指定新文件。包内RELEASE-MANIFEST.json记录相对路径和SHA-256；不包含清单自身哈希，也不含私有实验证据。验收方法见ACCEPTANCE.md。
 
 ## 错误与质量
 
